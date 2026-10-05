@@ -24,7 +24,7 @@ The frontend uses Next.js App Router, strict TypeScript, React, and Tailwind CSS
 - `KanbanBoard` loads `/api/board` on mount; the backend owns seeds, IDs, ownership, ordering, and persistence. No browser storage is used.
 - `src/lib/api.ts` is a small same-origin JSON client with no-store requests and typed HTTP errors.
 - Column names are drafts until Save column or Enter; Cancel rename or Escape discards the draft. Blank titles cannot be submitted.
-- Cards support create, edit/save/cancel, remove, reorder, and cross-column drag/drop. Forms retain drafts after failed saves.
+- Cards support create, edit/save/cancel, remove, reorder, and cross-column drag/drop. Forms retain drafts after failed saves. If the saved card changes while its edit form is open (for example through the assistant), the form keeps the draft, shows the saved version in an alert, and relabels Save card to Overwrite changes.
 - Only one mutation runs at a time; controls and drag are disabled during saves. State changes only after server confirmation. Every mutation sends the current revision and adopts the returned board.
 - Failed writes reload authoritative state, including after ambiguous network failures. If reload fails, further mutations are blocked until Reload board succeeds. Conflicts are reported for review and retry.
 - Dragging uses a pointer sensor with a six-pixel activation distance, pointer-aware collision detection, and an overlay. The card content is the drag handle; edit/remove controls are separate. KeyboardSensor uses sortableKeyboardCoordinates; Space/arrows/Space moves cards and Escape cancels. Pointer intersections prefer cards over columns; distance detection is the keyboard fallback.
