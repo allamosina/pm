@@ -174,3 +174,13 @@ cython_debug/
 
 .DS_Store
 
+# Local application data and secrets
+.env.*
+*.sqlite*
+*.db
+*.db-*
+node_modules/
+.next/
+out/
+test-results/
+playwright-report/

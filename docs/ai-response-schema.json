@@ -1,0 +1,162 @@
+{
+  "type": "json_schema",
+  "json_schema": {
+    "name": "board_changes",
+    "strict": true,
+    "schema": {
+      "$defs": {
+        "Create": {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "create",
+              "title": "Type",
+              "type": "string"
+            },
+            "column_id": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Column Id",
+              "type": "string"
+            },
+            "title": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Title",
+              "type": "string"
+            },
+            "details": {
+              "maxLength": 10000,
+              "title": "Details",
+              "type": "string"
+            },
+            "position": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Position"
+            }
+          },
+          "required": [
+            "type",
+            "column_id",
+            "title",
+            "details",
+            "position"
+          ],
+          "title": "Create",
+          "type": "object"
+        },
+        "Edit": {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "edit",
+              "title": "Type",
+              "type": "string"
+            },
+            "card_id": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Card Id",
+              "type": "string"
+            },
+            "title": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Title",
+              "type": "string"
+            },
+            "details": {
+              "maxLength": 10000,
+              "title": "Details",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "card_id",
+            "title",
+            "details"
+          ],
+          "title": "Edit",
+          "type": "object"
+        },
+        "Move": {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "move",
+              "title": "Type",
+              "type": "string"
+            },
+            "card_id": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Card Id",
+              "type": "string"
+            },
+            "column_id": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Column Id",
+              "type": "string"
+            },
+            "position": {
+              "minimum": 0,
+              "title": "Position",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "card_id",
+            "column_id",
+            "position"
+          ],
+          "title": "Move",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "reply": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Reply",
+          "type": "string"
+        },
+        "operations": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Create"
+              },
+              {
+                "$ref": "#/$defs/Edit"
+              },
+              {
+                "$ref": "#/$defs/Move"
+              }
+            ]
+          },
+          "maxItems": 20,
+          "title": "Operations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "reply",
+        "operations"
+      ],
+      "title": "Proposal",
+      "type": "object"
+    }
+  }
+}

@@ -1,0 +1,160 @@
+{
+  "status": "approved and implemented in Part 6 on 2026-10-05",
+  "database": "SQLite",
+  "storage": {
+    "docker": "/data/pm.sqlite3 on existing pm-data volume",
+    "local": "backend/data/pm.sqlite3",
+    "override": "DATABASE_PATH"
+  },
+  "connection_requirements": [
+    "PRAGMA foreign_keys = ON before any transaction on every connection",
+    "Parameterized queries; explicit transactions for mutations"
+  ],
+  "tables": {
+    "users": {
+      "status": "existing; preserve without rebuilding",
+      "columns": {
+        "id": "INTEGER PRIMARY KEY",
+        "username": "TEXT NOT NULL UNIQUE",
+        "password_hash": "TEXT NOT NULL"
+      },
+      "constraints": [],
+      "notes": [
+        "Case-sensitive username; existing Argon2 hashes and user IDs remain unchanged."
+      ]
+    },
+    "boards": {
+      "status": "implemented",
+      "columns": {
+        "id": "INTEGER PRIMARY KEY",
+        "user_id": "INTEGER NOT NULL UNIQUE",
+        "revision": "INTEGER NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      },
+      "constraints": [
+        "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+      ],
+      "notes": [
+        "Unique user_id enforces at most one board per user; initialization supplies one for every user.",
+        "Increment revision once per successful manual mutation or AI batch."
+      ]
+    },
+    "columns": {
+      "status": "implemented",
+      "columns": {
+        "board_id": "INTEGER NOT NULL",
+        "id": "TEXT NOT NULL",
+        "title": "TEXT NOT NULL CHECK (length(trim(title)) BETWEEN 1 AND 80)",
+        "position": "INTEGER NOT NULL"
+      },
+      "constraints": [
+        "PRIMARY KEY (board_id, id)",
+        "UNIQUE (board_id, position)",
+        "FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE",
+        "CHECK ((id = 'col-backlog' AND position = 0) OR (id = 'col-discovery' AND position = 1) OR (id = 'col-progress' AND position = 2) OR (id = 'col-review' AND position = 3) OR (id = 'col-done' AND position = 4))"
+      ],
+      "notes": [
+        "Column IDs are stable within a board and shared across boards for frontend compatibility.",
+        "Exactly five columns is an initialization/service invariant; database constraints enforce only allowed ID/position pairs and uniqueness.",
+        "Only title can be updated by the API."
+      ]
+    },
+    "cards": {
+      "status": "implemented",
+      "columns": {
+        "id": "TEXT NOT NULL PRIMARY KEY",
+        "board_id": "INTEGER NOT NULL",
+        "column_id": "TEXT NOT NULL",
+        "title": "TEXT NOT NULL CHECK (length(trim(title)) BETWEEN 1 AND 200)",
+        "details": "TEXT NOT NULL DEFAULT '' CHECK (length(details) <= 10000)",
+        "position": "INTEGER NOT NULL CHECK (position >= 0)"
+      },
+      "constraints": [
+        "FOREIGN KEY (board_id, column_id) REFERENCES columns(board_id, id) ON DELETE CASCADE"
+      ],
+      "notes": [
+        "Backend-generated UUID4 string; immutable id and board_id.",
+        "Position is zero-based within a column; contiguous unique positions are maintained by service transactions, not a UNIQUE constraint.",
+        "Each row references exactly one existing column on its own board."
+      ]
+    }
+  },
+  "indexes": [
+    {
+      "name": "cards_board_column_position",
+      "table": "cards",
+      "columns": [
+        "board_id",
+        "column_id",
+        "position"
+      ],
+      "unique": false
+    }
+  ],
+  "implicit_indexes": [
+    "users.username UNIQUE",
+    "boards.user_id UNIQUE",
+    "columns PRIMARY KEY (board_id,id)",
+    "columns UNIQUE (board_id,position)",
+    "cards.id PRIMARY KEY"
+  ],
+  "fixed_columns": [
+    {
+      "id": "col-backlog",
+      "initial_title": "Backlog",
+      "position": 0,
+      "frontend_color": "slate"
+    },
+    {
+      "id": "col-discovery",
+      "initial_title": "Discovery",
+      "position": 1,
+      "frontend_color": "blue"
+    },
+    {
+      "id": "col-progress",
+      "initial_title": "In Progress",
+      "position": 2,
+      "frontend_color": "yellow"
+    },
+    {
+      "id": "col-review",
+      "initial_title": "Review",
+      "position": 3,
+      "frontend_color": "purple"
+    },
+    {
+      "id": "col-done",
+      "initial_title": "Done",
+      "position": 4,
+      "frontend_color": "green"
+    }
+  ],
+  "initialization": {
+    "existing_accounts": "Keep all existing users, IDs, usernames and password hashes.",
+    "existing_users": "Create a missing board with all five columns and eight copied demo cards in one transaction per user.",
+    "new_registration": "Insert account, board, columns and eight copied demo cards in the same transaction.",
+    "seed_source": "Copy titles/details and column membership from frontend/src/lib/kanban.ts initialData; generate fresh card UUIDs for each board.",
+    "repeat_start": "Skip seeding if a board already exists; never reinsert deleted cards or overwrite names/order.",
+    "schema_version": "Set PRAGMA user_version = 1 after successful additive initialization; preserve users table. Future changes use explicit versioned migrations."
+  },
+  "application_invariants": [
+    "Acting user comes from current_user; resolve users.id from its username.",
+    "Every card lookup and mutation includes the authenticated board_id.",
+    "Never expose an API for changing board ownership or creating/deleting/reordering columns.",
+    "Titles are stripped of surrounding whitespace and validated before SQL; details may be empty.",
+    "Card positions must be exactly 0..n-1 within each column after every committed mutation.",
+    "A failed operation rolls back its entire transaction, including revision updates."
+  ],
+  "excluded": [
+    "persistent chat history",
+    "persistent login sessions",
+    "board JSON blobs",
+    "stored colors",
+    "labels, assignments, attachments, audit log"
+  ],
+  "api_board_shape": {
+    "columns": "Ordered by position; return id,title,cardIds ordered by card position.",
+    "cards": "Object keyed by card UUID with id,title,details.",
+    "revision": "Additional integer for detecting stale writes; never include password hashes."
+  }
+}

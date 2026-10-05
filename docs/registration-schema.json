@@ -1,0 +1,17 @@
+{
+  "status": "implemented for user-requested registration; Kanban tables pending Part 5 approval",
+  "database": "SQLite",
+  "tables": {
+    "users": {
+      "columns": {
+        "id": {"type": "INTEGER", "primary_key": true},
+        "username": {"type": "TEXT", "nullable": false, "unique": true, "comparison": "case-sensitive"},
+        "password_hash": {"type": "TEXT", "nullable": false, "encoding": "Argon2id via pwdlib"}
+      },
+      "indexes": ["SQLite implicit unique index on username"],
+      "foreign_keys": []
+    }
+  },
+  "initialization": "Create missing users table; seed user/password only if username user is absent.",
+  "sessions": "In memory only; eight-hour expiry; revoked on logout and lost on server restart."
+}

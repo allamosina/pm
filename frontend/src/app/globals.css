@@ -32,3 +32,19 @@ body {
 .font-display {
   font-family: var(--font-display), "Segoe UI", sans-serif;
 }
+
+[data-stage="col-backlog"] { --stage-color: #64748b; }
+[data-stage="col-discovery"] { --stage-color: var(--primary-blue); }
+[data-stage="col-progress"] { --stage-color: var(--accent-yellow); }
+[data-stage="col-review"] { --stage-color: var(--secondary-purple); }
+[data-stage="col-done"] { --stage-color: #258564; }
+
+.stage-column {
+  border-top: 4px solid var(--stage-color);
+  background: color-mix(in srgb, var(--stage-color) 5%, white);
+}
+
+.stage-label {
+  border-color: color-mix(in srgb, var(--stage-color) 30%, white);
+  background: color-mix(in srgb, var(--stage-color) 8%, white);
+}

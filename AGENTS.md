@@ -3,7 +3,7 @@
 ## Business Requirements
 
 This project is building a Project Management App. Key features:
-- A user can sign in
+- A user can register with a username/password and sign in
 - When signed in, the user sees a Kanban board representing their project
 - The Kanban board has fixed columns that can be renamed
 - The cards on the Kanban board can be moved with drag and drop, and edited
@@ -11,7 +11,7 @@ This project is building a Project Management App. Key features:
 
 ## Limitations
 
-For the MVP, there will only be a user sign in (hardcoded to 'user' and 'password') but the database will support multiple users for future.
+Users can register and sign in. Store accounts in SQLite with Argon2 password hashes. Keep the seeded 'user' / 'password' demo account available. Registration was explicitly added to scope by the user after Part 4.
 
 For the MVP, there will only be 1 Kanban board per signed in user.
 

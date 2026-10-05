@@ -1,3 +1,4 @@
+import { useState } from "react";
 import clsx from "clsx";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -8,9 +9,11 @@ import { NewCardForm } from "@/components/NewCardForm";
 type KanbanColumnProps = {
   column: Column;
   cards: Card[];
-  onRename: (columnId: string, title: string) => void;
-  onAddCard: (columnId: string, title: string, details: string) => void;
-  onDeleteCard: (columnId: string, cardId: string) => void;
+  disabled: boolean;
+  onEditCard: (cardId: string, title: string, details: string) => Promise<boolean>;
+  onRename: (columnId: string, title: string) => Promise<boolean>;
+  onAddCard: (columnId: string, title: string, details: string) => Promise<boolean>;
+  onDeleteCard: (cardId: string) => Promise<boolean>;
 };
 
 export const KanbanColumn = ({
@@ -19,32 +22,50 @@ export const KanbanColumn = ({
   onRename,
   onAddCard,
   onDeleteCard,
+  onEditCard,
+  disabled,
 }: KanbanColumnProps) => {
-  const { setNodeRef, isOver } = useDroppable({ id: column.id });
+  const { setNodeRef, isOver } = useDroppable({ id: column.id, disabled });
+
+  const [draft, setDraft] = useState<string | null>(null);
 
   return (
     <section
       ref={setNodeRef}
+      data-stage={column.id}
       className={clsx(
-        "flex min-h-[520px] flex-col rounded-3xl border border-[var(--stroke)] bg-[var(--surface-strong)] p-4 shadow-[var(--shadow)] transition",
-        isOver && "ring-2 ring-[var(--accent-yellow)]"
+        "stage-column flex min-h-[520px] flex-col rounded-3xl border border-[var(--stroke)] p-4 shadow-[var(--shadow)] transition",
+        isOver && "ring-2 ring-[var(--stage-color)]"
       )}
       data-testid={`column-${column.id}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="w-full">
           <div className="flex items-center gap-3">
-            <div className="h-2 w-10 rounded-full bg-[var(--accent-yellow)]" />
+            <div className="h-2 w-10 rounded-full bg-[var(--stage-color)]" />
             <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]">
               {cards.length} cards
             </span>
           </div>
+          <form onSubmit={async event => {
+            event.preventDefault();
+            if (draft?.trim() && await onRename(column.id, draft.trim())) setDraft(null);
+          }}>
           <input
-            value={column.title}
-            onChange={(event) => onRename(column.id, event.target.value)}
+            value={draft ?? column.title}
+            onChange={(event) => setDraft(event.target.value)}
+            disabled={disabled}
+            required
+            maxLength={80}
+            onKeyDown={event => { if (event.key === "Escape") setDraft(null); }}
             className="mt-3 w-full bg-transparent font-display text-lg font-semibold text-[var(--navy-dark)] outline-none"
             aria-label="Column title"
           />
+          {draft !== null && <div className="mt-2 flex gap-3 text-xs">
+            <button disabled={disabled || !draft.trim()} className="text-[var(--secondary-purple)]" type="submit">Save column</button>
+            <button disabled={disabled} type="button" onClick={() => setDraft(null)}>Cancel rename</button>
+          </div>}
+          </form>
         </div>
       </div>
       <div className="mt-4 flex flex-1 flex-col gap-3">
@@ -53,7 +74,9 @@ export const KanbanColumn = ({
             <KanbanCard
               key={card.id}
               card={card}
-              onDelete={(cardId) => onDeleteCard(column.id, cardId)}
+              onDelete={onDeleteCard}
+              onEdit={onEditCard}
+              disabled={disabled}
             />
           ))}
         </SortableContext>
@@ -64,6 +87,7 @@ export const KanbanColumn = ({
         )}
       </div>
       <NewCardForm
+        disabled={disabled}
         onAdd={(title, details) => onAddCard(column.id, title, details)}
       />
     </section>
