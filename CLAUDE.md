@@ -13,13 +13,13 @@ Project requirements, technical decisions, color palette, and coding standards l
 
 ## Commands
 
-Full app (Docker, port 8000): `./scripts/start.sh` / `./scripts/stop.sh`. Stop must never remove the `pm-data` volume.
+Full app (Docker, port 8000): `./scripts/start.sh` / `./scripts/stop.sh` (Windows: `start.ps1` / `stop.ps1`). Stop must never remove the `pm-data` volume.
 
 Backend (from `backend/`, Python 3.14 + uv):
 
 - `uv run --locked pytest`: all tests
 - `uv run --locked pytest tests/test_board.py::test_name`: single test
-- `uv run --locked uvicorn app.main:app --reload`: dev server (build the frontend first to serve `/`)
+- `uv run --locked uvicorn app.main:app --reload`: dev server (build the frontend first to serve `/`). `DATABASE_PATH` defaults to `backend/data/pm.sqlite3` and `STATIC_DIR` to `frontend/out`
 - `docker compose exec -T app python -m app.check_openrouter`: live OpenRouter check (needs a real key; normal tests mock HTTP)
 
 Frontend (from `frontend/`, Node 24, `npm ci`):
@@ -37,8 +37,18 @@ One container: a Node build stage runs `next build` (static export, no Next serv
 
 Request flow: `AuthGate` checks `/api/auth/session` and then mounts `KanbanBoard`, which loads `/api/board`. Sessions are opaque tokens in in-memory `app.state.sessions` (cookie `pm_session`), so run only one worker, and a restart logs everyone out. Every protected route depends on `current_user`. The acting user and board always come from the session, never from the request body.
 
-Board consistency model: the backend is authoritative. Each board has a `revision`. Every mutation sends `expected_revision`, runs in a single `BEGIN IMMEDIATE` transaction (`board.py`), increments the revision once, and returns the full board, which the frontend adopts. A stale revision returns 409, and a SQLite lock timeout returns 503. The frontend runs one mutation at a time (a shared save lock that also covers chat) and reloads authoritative state after any failure.
+Board consistency model: the backend is authoritative. Each board has a `revision`. Every mutation sends `expected_revision`, runs in a single `BEGIN IMMEDIATE` transaction (`board.py`), increments the revision once, and returns the full board, which the frontend adopts. A stale revision returns 409, and a SQLite busy/locked error returns 503 (global handler in `main.py`). The frontend runs one mutation at a time (a shared save lock that also covers chat) and reloads authoritative state after any failure.
 
 AI chat (`chat.py`): it reads the board, closes the transaction, calls OpenRouter (`openrouter.complete`, model `openai/gpt-oss-120b`, JSON-schema response format), validates the `Proposal` (max 20 create/edit/move ops, no deletes or column renames), then applies it through `mutate_board` against the original revision in one transaction. Invalid output returns 502 with no partial writes. Chat history lives only in browser memory (`ChatSidebar`) and is sent with each request; it is never persisted. Keep `docs/ai-response-schema.json` in sync with the `Proposal` models.
 
 Database: SQLite via plain `sqlite3` (no ORM), `schema.sql` at `user_version = 1`, foreign keys enabled per connection. The five fixed column IDs (`col-backlog` ... `col-done`) are reused across boards, so column/card queries always include `board_id`. Seeding happens once per board (at registration or a startup backfill) and never resets existing data. Tests must pass a temporary `database_path` to `create_app`.
+
+## Working style
+
+The coding standards in `AGENTS.md` apply. In addition:
+
+- Work incrementally: small steps, validate each one (tests, lint, type check) before moving on.
+- Python always goes through uv: `uv run x`, never `python3 x`; `uv add x`, never `pip install x`.
+- Use exception handlers only where the error is actually handled (see the 409/503 mapping above).
+- Prefer short modules and functions with clear names. Favor concise docstrings; be sparing with other comments.
+- Debugging: reproduce the problem consistently and prove the cause before changing code. Try one thing at a time. No workarounds.
